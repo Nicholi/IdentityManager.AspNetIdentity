@@ -13,13 +13,10 @@
     <releaseNotes>First beta version</releaseNotes>
     <copyright>Copyright 2015</copyright>
     <tags>IdentityManager AspNetIdentity Identity Management</tags>
-
-    <!--<dependencies>
-      <dependency id="IdentityManager" version="1.0.0-beta5-5" />
+    <dependencies>
+      <dependency id="IdentityManager" version="" />
       <dependency id="Microsoft.AspNet.Identity.Core" version="2.2.1" />
-    </dependencies>-->
+      <dependency id="Owin" version="1.0" />
+    </dependencies>
   </metadata>
-  <files>
-    <file src="..\..\build\$id$.pdb" target="lib\net45" />
-  </files>
 </package>

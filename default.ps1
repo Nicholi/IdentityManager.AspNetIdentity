@@ -11,6 +11,7 @@ properties {
 	$buildNumber = 0;
 	$version = "1.0.0.0"
 	$preRelease = $null
+	$betaRelease = $null
 }
 
 task default -depends Clean, CreateNuGetPackage
@@ -54,6 +55,9 @@ task CreateNuGetPackage -depends Compile {
 	$minor = $vSplit[1]
 	$patch = $vSplit[2]
 	$packageVersion =  "$major.$minor.$patch"
+	if($betaRelease) {
+		$packageVersion = "$packageVersion-beta$betaRelease" 
+	}
 	if($preRelease){
 		$packageVersion = "$packageVersion-$preRelease" 
 	}
