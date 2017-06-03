@@ -517,6 +517,56 @@ namespace IdentityManager.AspNetIdentity
             return new IdentityManagerResult<UserDetail>(result);
         }
 
+        public virtual async Task<IdentityManagerResult<UserDetail>> GetUserByNameOrEmailAsync(String userNameOrEmail)
+        {
+            var userByNameTask = this.userManager.FindByNameAsync(userNameOrEmail);
+            var userByEmailTask = this.userManager.FindByEmailAsync(userNameOrEmail);
+
+            await Task.WhenAll(userByNameTask, userByEmailTask);
+
+            var user = await userByNameTask;
+            if (user == null)
+            {
+                user = await userByEmailTask;
+
+                if (user == null)
+                {
+                    return new IdentityManagerResult<UserDetail>((UserDetail) null);
+                }
+            }
+
+            var result = new UserDetail
+            {
+                Subject = user.Id.ToString(),
+                Username = user.UserName,
+                Name = DisplayNameFromUser(user),
+            };
+
+            var metadata = await GetMetadataAsync();
+
+            var props =
+                from prop in metadata.UserMetadata.UpdateProperties
+                select new PropertyValue
+                {
+                    Type = prop.Type,
+                    Value = GetUserProperty(prop, user)
+                };
+            result.Properties = props.ToArray();
+
+            if (userManager.SupportsUserClaim)
+            {
+                var userClaims = await userManager.GetClaimsAsync(user.Id);
+                var claims = new List<IdentityManager.ClaimValue>();
+                if (userClaims != null)
+                {
+                    claims.AddRange(userClaims.Select(x => new IdentityManager.ClaimValue { Type = x.Type, Value = x.Value }));
+                }
+                result.Claims = claims.ToArray();
+            }
+
+            return new IdentityManagerResult<UserDetail>(result);
+        }
+
         public virtual async Task<IdentityManagerResult> SetUserPropertyAsync(string subject, string type, string value)
         {
             TUserKey key = ConvertUserSubjectToKey(subject);
