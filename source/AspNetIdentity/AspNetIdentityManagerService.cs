@@ -567,6 +567,68 @@ namespace IdentityManager.AspNetIdentity
             return new IdentityManagerResult<UserDetail>(result);
         }
 
+        public virtual async Task<IdentityManagerResult<IEnumerable<UserDetail>>> GetUsersAsync(IEnumerable<String> subjects)
+        {
+            var subjectKeys = subjects.Select(x => ConvertUserSubjectToKey(x)).ToList();
+
+            var query =
+                from user in userManager.Users
+                where subjectKeys.Contains(user.Id)
+                orderby user.UserName
+                select user;
+
+            var users = query.ToArray();
+
+            if (users.Length == 0)
+            {
+                return new IdentityManagerResult<IEnumerable<UserDetail>>(Enumerable.Empty<UserDetail>());
+            }
+
+            var userClaimTasks = new Dictionary<TUserKey, Task<IList<Claim>>>();
+            if (userManager.SupportsUserClaim)
+            {
+                foreach (var user in users)
+                {
+                    userClaimTasks.Add(user.Id, userManager.GetClaimsAsync(user.Id));
+                }
+
+                await Task.WhenAll(userClaimTasks.Values);
+            }
+
+            var metadata = await GetMetadataAsync();
+
+            var userDetails = new List<UserDetail>(users.Length);
+            foreach (var user in users)
+            {
+                var userDetail = new UserDetail
+                    {
+                        Subject = user.Id.ToString(),
+                        Username = user.UserName,
+                        Name = DisplayNameFromUser(user)
+                    };
+
+                var props =
+                    from prop in metadata.UserMetadata.UpdateProperties
+                    select new PropertyValue
+                        {
+                            Type = prop.Type,
+                            Value = GetUserProperty(prop, user)
+                        };
+                userDetail.Properties = props.ToArray();
+
+                var claims = new List<IdentityManager.ClaimValue>();
+                if (userClaimTasks.ContainsKey(user.Id))
+                {
+                    claims.AddRange((await userClaimTasks[user.Id]).Select(x => new IdentityManager.ClaimValue { Type = x.Type, Value = x.Value }));
+                }
+                userDetail.Claims = claims.ToArray();
+
+                userDetails.Add(userDetail);
+            }
+
+            return new IdentityManagerResult<IEnumerable<UserDetail>>(userDetails);
+        }
+
         public virtual async Task<IdentityManagerResult> SetUserPropertyAsync(string subject, string type, string value)
         {
             TUserKey key = ConvertUserSubjectToKey(subject);
